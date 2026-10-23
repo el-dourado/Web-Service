@@ -25,6 +25,38 @@ import java.util.List;
 @Configuration
 public class WebServiceConfig extends WsConfigurerAdapter {
 
+    @Bean
+    public Wss4jSecurityInterceptor securityInterceptor() {
+        Wss4jSecurityInterceptor securityInterceptor = new Wss4jSecurityInterceptor();
+        // Exige o UsernameToken com validação de assinatura (Hash)
+        securityInterceptor.setValidationActions("UsernameToken");
+        securityInterceptor.setValidationCallbackHandler(new SecurityCallbackHandler());
+        return securityInterceptor;
+    }
+
+    @Override
+    public void addInterceptors(List<EndpointInterceptor> interceptors) {
+        // Regista o intercetor para bloquear qualquer requisição sem o Header de segurança correto
+        interceptors.add(securityInterceptor());
+    }
+
+    @Bean
+    public SoapFaultMappingExceptionResolver exceptionResolver() {
+        SoapFaultMappingExceptionResolver exceptionResolver = new SoapFaultMappingExceptionResolver();
+        
+        SoapFaultDefinition faultDefinition = new SoapFaultDefinition();
+        faultDefinition.setFaultCode(SoapFaultDefinition.CLIENT);
+        exceptionResolver.setDefaultFault(faultDefinition);
+
+        Properties errorMappings = new Properties();
+        // Mapeia a BusinessException para um SOAP Fault do tipo CLIENT (Erro na requisição)
+        errorMappings.setProperty(BusinessException.class.getName(), SoapFaultDefinition.CLIENT.toString());
+        exceptionResolver.setExceptionMappings(errorMappings);
+        exceptionResolver.setOrder(1);
+        
+        return exceptionResolver;
+    }
+
     /**
      * Registra o MessageDispatcherServlet para processar requisições SOAP.
      * Mapeado para /ws/*
